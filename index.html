@@ -3,19 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <title>PointBase – Système de Points</title>
+</head>
+<body>
+
+  <h1>PointBase</h1>
+
+  <h2>Créer un compte</h2>
+  <input id="emailCreate" type="email" placeholder="Email">
+  <input id="passwordCreate" type="password" placeholder="Mot de passe">
+  <button id="btnCreate">Créer un compte</button>
+
+  <h2>Connexion</h2>
+  <input id="emailLogin" type="email" placeholder="Email">
+  <input id="passwordLogin" type="password" placeholder="Mot de passe">
+  <button id="btnLogin">Se connecter</button>
+
+  <h2>Points</h2>
+  <p id="pointsDisplay">Points : 0</p>
+  <button id="addPoint">+1 point</button>
+  <button id="logout">Déconnexion</button>
 
   <!-- Firebase -->
   <script type="module">
-    // Import Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } 
       from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     import { getDatabase, ref, set, get } 
       from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // Your Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyCSJPzGUrsFtL6_16zI6D0DkxAdmQmYUWU",
       authDomain: "point-base.firebaseapp.com",
       databaseURL: "https://point-base-default-rtdb.firebaseio.com",
-      projectId
+      projectId: "point-base",
+      storageBucket: "point-base.firebasestorage.app",
+      messagingSenderId: "768400723408",
+      appId: "1:768400723408:web:2b6d6962da7e6a7ab4fdd5"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // Création de compte
+    document.getElementById("btnCreate").onclick = async () => {
+      const email = emailCreate.value;
+      const pass = passwordCreate.value;
+
+      const user = await createUserWithEmailAndPassword(auth, email, pass);
+      await set(ref(db, "users/" + user.user.uid), { points: 0 });
+      alert("Compte créé !");
+    };
+
+    // Connexion
+    document.getElementById("btnLogin").onclick = async () => {
+      const email = emailLogin.value;
+      const pass = passwordLogin.value;
+
+      const user = await signInWithEmailAndPassword(auth, email, pass);
+      const snap = await get(ref(db, "users/" + user.user.uid));
+      pointsDisplay.textContent = "Points : " + snap.val().points;
+    };
+
+    // Ajouter un point
+    document.getElementById("addPoint").onclick = async () => {
+      const user = auth.currentUser;
+      if (!user) return alert("Pas connecté");
+
+      const snap = await get(ref(db, "users/" + user.uid));
+      const newPoints = snap.val().points + 1;
+
+      await set(ref(db, "users/" + user.uid), { points: newPoints });
+      pointsDisplay.textContent = "Points : " + newPoints;
+    };
+
+    // Déconnexion
+    document.getElementById("logout").onclick = () => {
+      signOut(auth);
+      pointsDisplay.textContent = "Points : 0";
+    };
+  </script>
+
+</body>
+</html>
+
