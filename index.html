@@ -2,35 +2,475 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>PointBase – Système de Points</title>
+  <title>PointBase – Système de points</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      background: #050814;
+      color: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* Sidebar admin */
+
+    #adminSidebar {
+      width: 260px;
+      background: linear-gradient(180deg, #060b1c, #050814);
+      border-right: 1px solid rgba(255,255,255,0.05);
+      padding: 20px;
+      display: none; /* caché pour les non-admins */
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    #adminSidebar h2 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      color: #7dd3fc;
+    }
+
+    #adminSidebar .admin-email {
+      font-size: 12px;
+      color: #94a3b8;
+      word-break: break-all;
+    }
+
+    #userList {
+      margin-top: 10px;
+      max-height: 60vh;
+      overflow-y: auto;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      padding: 8px;
+      background: rgba(15,23,42,0.8);
+    }
+
+    .userItem {
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .userItem:hover {
+      background: rgba(56,189,248,0.15);
+    }
+
+    .userItem.selected {
+      background: rgba(56,189,248,0.3);
+      border: 1px solid rgba(56,189,248,0.9);
+    }
+
+    .userEmail {
+      color: #e5e7eb;
+    }
+
+    .userPoints {
+      color: #a5b4fc;
+      font-size: 12px;
+    }
+
+    /* Main content */
+
+    #mainContent {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 20px;
+    }
+
+    .card {
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 60%),
+                  radial-gradient(circle at bottom right, rgba(129,140,248,0.18), transparent 60%),
+                  #020617;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      padding: 20px;
+      width: 100%;
+      max-width: 540px;
+      box-shadow: 0 18px 45px rgba(15,23,42,0.8);
+    }
+
+    h1 {
+      font-size: 26px;
+      margin-bottom: 6px;
+      text-align: center;
+      background: linear-gradient(90deg, #38bdf8, #a855f7);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 16px;
+    }
+
+    .sectionTitle {
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #e5e7eb;
+    }
+
+    .inputGroup {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    input {
+      background: #020617;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      padding: 8px 10px;
+      color: #e5e7eb;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+
+    input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.4);
+      background: #020818;
+    }
+
+    .btnRow {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border-radius: 999px;
+      padding: 8px 14px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.1s, box-shadow 0.1s, background 0.1s;
+    }
+
+    .btnPrimary {
+      background: linear-gradient(90deg, #38bdf8, #4f46e5);
+      color: white;
+      box-shadow: 0 10px 25px rgba(37,99,235,0.5);
+    }
+
+    .btnPrimary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 30px rgba(37,99,235,0.7);
+    }
+
+    .btnSecondary {
+      background: rgba(15,23,42,0.9);
+      color: #e5e7eb;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+    }
+
+    .btnSecondary:hover {
+      background: rgba(15,23,42,1);
+    }
+
+    .btnDanger {
+      background: rgba(220,38,38,0.1);
+      color: #fecaca;
+      border: 1px solid rgba(248,113,113,0.7);
+    }
+
+    .btnDanger:hover {
+      background: rgba(220,38,38,0.18);
+    }
+
+    .statusBadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: #e5e7eb;
+      margin-bottom: 10px;
+    }
+
+    .statusDotAdmin {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    .statusDotUser {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #eab308;
+    }
+
+    #userRoleLabel {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    /* Points display */
+
+    #userPointsCard {
+      display: none; /* caché avant connexion */
+    }
+
+    .pointsValue {
+      font-size: 40px;
+      font-weight: 700;
+      margin-top: 6px;
+      color: #a5b4fc;
+    }
+
+    .pointsLabel {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .infoText {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 6px;
+    }
+
+    /* Admin controls */
+
+    #adminPanel {
+      display: none; /* caché pour non-admins */
+      margin-top: 4px;
+    }
+
+    #adminTargetEmail {
+      font-size: 13px;
+      color: #e5e7eb;
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
+
+    #adminTargetPoints {
+      font-size: 13px;
+      color: #a5b4fc;
+      margin-bottom: 10px;
+    }
+
+    .adminInputsRow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    .smallInput {
+      width: 110px;
+    }
+
+    #messageBox {
+      margin-top: 10px;
+      font-size: 12px;
+      min-height: 16px;
+    }
+
+    .msgError {
+      color: #fecaca;
+    }
+
+    .msgSuccess {
+      color: #bbf7d0;
+    }
+
+    .msgInfo {
+      color: #93c5fd;
+    }
+
+    /* Auth info */
+
+    #authInfo {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 8px;
+      word-break: break-all;
+    }
+
+    #loggedEmail {
+      color: #e5e7eb;
+    }
+
+    /* Layout responsive */
+
+    @media (max-width: 900px) {
+      body {
+        flex-direction: column;
+      }
+
+      #adminSidebar {
+        width: 100%;
+        flex-direction: column;
+        order: 2;
+        border-right: none;
+        border-top: 1px solid rgba(148,163,184,0.3);
+      }
+
+      #mainContent {
+        order: 1;
+      }
+    }
+  </style>
 </head>
 <body>
 
-  <h1>PointBase</h1>
+  <!-- Sidebar admin -->
+  <aside id="adminSidebar">
+    <div>
+      <h2>Admin – PointBase</h2>
+      <div class="admin-email">
+        Connecté en tant que :
+        <div id="adminEmailDisplay">–</div>
+      </div>
+    </div>
 
-  <h2>Créer un compte</h2>
-  <input id="emailCreate" type="email" placeholder="Email">
-  <input id="passwordCreate" type="password" placeholder="Mot de passe">
-  <button id="btnCreate">Créer un compte</button>
+    <div>
+      <div class="sectionTitle">Utilisateurs</div>
+      <div id="userList">
+        <!-- Liste des utilisateurs générée en JS -->
+      </div>
+    </div>
 
-  <h2>Connexion</h2>
-  <input id="emailLogin" type="email" placeholder="Email">
-  <input id="passwordLogin" type="password" placeholder="Mot de passe">
-  <button id="btnLogin">Se connecter</button>
+    <div class="infoText">
+      Sélectionne un utilisateur pour voir et modifier ses points.
+    </div>
+  </aside>
 
-  <h2>Points</h2>
-  <p id="pointsDisplay">Points : 0</p>
-  <button id="addPoint">+1 point</button>
-  <button id="logout">Déconnexion</button>
+  <!-- Contenu principal -->
+  <main id="mainContent">
+    <div class="card">
+      <h1>PointBase</h1>
+      <div class="subtitle">
+        Connexion sécurisée avec rôles admin & utilisateurs.
+      </div>
 
-  <!-- Firebase -->
+      <!-- Auth -->
+      <div class="sectionTitle">Connexion / Inscription</div>
+
+      <div class="inputGroup">
+        <label for="emailInput">Email</label>
+        <input id="emailInput" type="email" placeholder="ex: exemple@gmail.com">
+      </div>
+
+      <div class="inputGroup">
+        <label for="passwordInput">Mot de passe</label>
+        <input id="passwordInput" type="password" placeholder="Mot de passe">
+      </div>
+
+      <div class="btnRow" style="margin-bottom: 10px;">
+        <button id="btnLogin" class="btnPrimary">Se connecter</button>
+        <button id="btnRegister" class="btnSecondary">Créer un compte</button>
+        <button id="btnLogout" class="btnDanger">Se déconnecter</button>
+      </div>
+
+      <div id="authInfo">
+        Non connecté.
+      </div>
+
+      <div id="messageBox"></div>
+    </div>
+
+    <!-- Carte des points utilisateur -->
+    <div id="userPointsCard" class="card">
+      <div class="statusBadge" id="roleBadge">
+        <div class="statusDotUser" id="roleDot"></div>
+        <div id="roleText">Utilisateur</div>
+      </div>
+
+      <div class="sectionTitle">Tes points</div>
+      <div class="pointsValue" id="userPointsValue">0</div>
+      <div class="pointsLabel" id="userPointsLabel">Points actuels</div>
+      <div class="infoText">
+        Les utilisateurs normaux ne peuvent pas modifier leurs points.  
+        Seuls les administrateurs peuvent les ajuster.
+      </div>
+    </div>
+
+    <!-- Panneau admin -->
+    <div id="adminPanel" class="card">
+      <div class="sectionTitle">Panneau admin – Points utilisateur</div>
+
+      <div id="adminTargetEmail">Aucun utilisateur sélectionné.</div>
+      <div id="adminTargetPoints"></div>
+
+      <div class="adminInputsRow">
+        <div>
+          <label for="adminAddInput">Ajouter des points</label>
+          <input id="adminAddInput" type="number" class="smallInput" placeholder="+10">
+        </div>
+
+        <div>
+          <label for="adminSetInput">Définir les points</label>
+          <input id="adminSetInput" type="number" class="smallInput" placeholder="100">
+        </div>
+
+        <div class="btnRow">
+          <button id="btnAddPoints" class="btnPrimary">Ajouter</button>
+          <button id="btnSetPoints" class="btnSecondary">Définir</button>
+        </div>
+      </div>
+
+      <div class="infoText">
+        Sélectionne un utilisateur dans la barre de gauche pour modifier ses points.
+      </div>
+    </div>
+  </main>
+
+  <!-- Firebase & logique -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } 
-      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getDatabase, ref, set, get } 
-      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import {
+      getDatabase,
+      ref,
+      set,
+      get,
+      update,
+      onValue
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+    // Config Firebase (la tienne)
     const firebaseConfig = {
       apiKey: "AIzaSyCSJPzGUrsFtL6_16zI6D0DkxAdmQmYUWU",
       authDomain: "point-base.firebaseapp.com",
@@ -45,45 +485,343 @@
     const auth = getAuth(app);
     const db = getDatabase(app);
 
-    // Création de compte
-    document.getElementById("btnCreate").onclick = async () => {
-      const email = emailCreate.value;
-      const pass = passwordCreate.value;
+    // Emails admin
+    const ADMIN_EMAILS = [
+      "darknir@gmail.com",
+      "jn@gmail.com"
+    ];
 
-      const user = await createUserWithEmailAndPassword(auth, email, pass);
-      await set(ref(db, "users/" + user.user.uid), { points: 0 });
-      alert("Compte créé !");
+    // Elements
+    const emailInput = document.getElementById("emailInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    const btnLogout = document.getElementById("btnLogout");
+
+    const authInfo = document.getElementById("authInfo");
+    const messageBox = document.getElementById("messageBox");
+
+    const adminSidebar = document.getElementById("adminSidebar");
+    const adminEmailDisplay = document.getElementById("adminEmailDisplay");
+    const userList = document.getElementById("userList");
+
+    const userPointsCard = document.getElementById("userPointsCard");
+    const userPointsValue = document.getElementById("userPointsValue");
+    const roleBadge = document.getElementById("roleBadge");
+    const roleDot = document.getElementById("roleDot");
+    const roleText = document.getElementById("roleText");
+
+    const adminPanel = document.getElementById("adminPanel");
+    const adminTargetEmail = document.getElementById("adminTargetEmail");
+    const adminTargetPoints = document.getElementById("adminTargetPoints");
+    const adminAddInput = document.getElementById("adminAddInput");
+    const adminSetInput = document.getElementById("adminSetInput");
+    const btnAddPoints = document.getElementById("btnAddPoints");
+    const btnSetPoints = document.getElementById("btnSetPoints");
+
+    // État
+    let currentUser = null;
+    let isAdmin = false;
+    let usersCache = {};
+    let selectedUserId = null;
+
+    // Helpers
+    function setMessage(text, type = "info") {
+      messageBox.textContent = text || "";
+      messageBox.className = "";
+      if (!text) return;
+      if (type === "error") messageBox.classList.add("msgError");
+      else if (type === "success") messageBox.classList.add("msgSuccess");
+      else messageBox.classList.add("msgInfo");
+    }
+
+    function getUserRef(uid) {
+      return ref(db, "users/" + uid);
+    }
+
+    function normalizeEmail(email) {
+      return (email || "").trim().toLowerCase();
+    }
+
+    function checkIsAdmin(email) {
+      const e = normalizeEmail(email);
+      return ADMIN_EMAILS.map(normalizeEmail).includes(e);
+    }
+
+    // Auth actions
+
+    btnRegister.onclick = async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if (!email || !password) {
+        setMessage("Email et mot de passe obligatoires.", "error");
+        return;
+      }
+
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = cred.user.uid;
+
+        await set(getUserRef(uid), {
+          email: email,
+          points: 0,
+          createdAt: Date.now()
+        });
+
+        setMessage("Compte créé avec succès. Tu es connecté.", "success");
+      } catch (err) {
+        console.error(err);
+        setMessage("Erreur inscription : " + err.message, "error");
+      }
     };
 
-    // Connexion
-    document.getElementById("btnLogin").onclick = async () => {
-      const email = emailLogin.value;
-      const pass = passwordLogin.value;
+    btnLogin.onclick = async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
 
-      const user = await signInWithEmailAndPassword(auth, email, pass);
-      const snap = await get(ref(db, "users/" + user.user.uid));
-      pointsDisplay.textContent = "Points : " + snap.val().points;
+      if (!email || !password) {
+        setMessage("Email et mot de passe obligatoires.", "error");
+        return;
+      }
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        setMessage("Connexion réussie.", "success");
+      } catch (err) {
+        console.error(err);
+        setMessage("Erreur connexion : " + err.message, "error");
+      }
     };
 
-    // Ajouter un point
-    document.getElementById("addPoint").onclick = async () => {
-      const user = auth.currentUser;
-      if (!user) return alert("Pas connecté");
-
-      const snap = await get(ref(db, "users/" + user.uid));
-      const newPoints = snap.val().points + 1;
-
-      await set(ref(db, "users/" + user.uid), { points: newPoints });
-      pointsDisplay.textContent = "Points : " + newPoints;
+    btnLogout.onclick = async () => {
+      try {
+        await signOut(auth);
+        setMessage("Déconnecté.", "info");
+      } catch (err) {
+        console.error(err);
+        setMessage("Erreur déconnexion : " + err.message, "error");
+      }
     };
 
-    // Déconnexion
-    document.getElementById("logout").onclick = () => {
-      signOut(auth);
-      pointsDisplay.textContent = "Points : 0";
+    // UI selon rôle
+
+    function updateRoleUI() {
+      if (!currentUser) {
+        authInfo.textContent = "Non connecté.";
+        userPointsCard.style.display = "none";
+        adminSidebar.style.display = "none";
+        adminPanel.style.display = "none";
+        return;
+      }
+
+      const email = currentUser.email || "";
+      authInfo.innerHTML = `Connecté en tant que <span id="loggedEmail">${email}</span>`;
+      userPointsCard.style.display = "block";
+
+      if (isAdmin) {
+        // badge admin
+        roleText.textContent = "Administrateur";
+        roleDot.className = "statusDotAdmin";
+        adminSidebar.style.display = "flex";
+        adminPanel.style.display = "block";
+        adminEmailDisplay.textContent = email;
+      } else {
+        // badge user
+        roleText.textContent = "Utilisateur";
+        roleDot.className = "statusDotUser";
+        adminSidebar.style.display = "none";
+        adminPanel.style.display = "none";
+      }
+    }
+
+    // Chargement points utilisateur connecté
+
+    function subscribeToOwnPoints(uid) {
+      const r = getUserRef(uid);
+      onValue(r, (snap) => {
+        const data = snap.val();
+        if (!data) return;
+        const pts = data.points || 0;
+        userPointsValue.textContent = pts;
+      });
+    }
+
+    // Chargement liste utilisateurs pour admin
+
+    function subscribeToAllUsers() {
+      const r = ref(db, "users");
+      onValue(r, (snap) => {
+        usersCache = snap.val() || {};
+        renderUserList();
+        if (selectedUserId && !usersCache[selectedUserId]) {
+          selectedUserId = null;
+          adminTargetEmail.textContent = "Aucun utilisateur sélectionné.";
+          adminTargetPoints.textContent = "";
+        } else if (selectedUserId) {
+          updateAdminTargetDisplay();
+        }
+      });
+    }
+
+    function renderUserList() {
+      userList.innerHTML = "";
+      const entries = Object.entries(usersCache);
+
+      if (!entries.length) {
+        const div = document.createElement("div");
+        div.textContent = "Aucun utilisateur trouvé.";
+        div.style.fontSize = "13px";
+        div.style.color = "#9ca3af";
+        userList.appendChild(div);
+        return;
+      }
+
+      entries
+        .sort((a, b) => {
+          const ea = (a[1].email || "").toLowerCase();
+          const eb = (b[1].email || "").toLowerCase();
+          return ea.localeCompare(eb);
+        })
+        .forEach(([uid, data]) => {
+          const item = document.createElement("div");
+          item.className = "userItem";
+          if (uid === selectedUserId) item.classList.add("selected");
+
+          const emailDiv = document.createElement("div");
+          emailDiv.className = "userEmail";
+          emailDiv.textContent = data.email || "(sans email)";
+
+          const ptsDiv = document.createElement("div");
+          ptsDiv.className = "userPoints";
+          ptsDiv.textContent = "Points : " + (data.points || 0);
+
+          item.appendChild(emailDiv);
+          item.appendChild(ptsDiv);
+
+          item.onclick = () => {
+            selectedUserId = uid;
+            updateAdminTargetDisplay();
+            renderUserList();
+          };
+
+          userList.appendChild(item);
+        });
+    }
+
+    function updateAdminTargetDisplay() {
+      if (!selectedUserId || !usersCache[selectedUserId]) {
+        adminTargetEmail.textContent = "Aucun utilisateur sélectionné.";
+        adminTargetPoints.textContent = "";
+        return;
+      }
+      const u = usersCache[selectedUserId];
+      adminTargetEmail.textContent = "Utilisateur sélectionné : " + (u.email || selectedUserId);
+      adminTargetPoints.textContent = "Points actuels : " + (u.points || 0);
+    }
+
+    // Actions admin
+
+    btnAddPoints.onclick = async () => {
+      if (!isAdmin) {
+        setMessage("Accès refusé : réservé aux admins.", "error");
+        return;
+      }
+
+      if (!selectedUserId || !usersCache[selectedUserId]) {
+        setMessage("Sélectionne un utilisateur dans la liste.", "error");
+        return;
+      }
+
+      const value = parseInt(adminAddInput.value, 10);
+      if (isNaN(value)) {
+        setMessage("Entre un nombre à ajouter.", "error");
+        return;
+      }
+
+      const current = usersCache[selectedUserId].points || 0;
+      const newVal = current + value;
+
+      try {
+        await update(getUserRef(selectedUserId), { points: newVal });
+        setMessage("Points ajoutés avec succès.", "success");
+        adminAddInput.value = "";
+      } catch (err) {
+        console.error(err);
+        setMessage("Erreur ajout points : " + err.message, "error");
+      }
     };
+
+    btnSetPoints.onclick = async () => {
+      if (!isAdmin) {
+        setMessage("Accès refusé : réservé aux admins.", "error");
+        return;
+      }
+
+      if (!selectedUserId || !usersCache[selectedUserId]) {
+        setMessage("Sélectionne un utilisateur dans la liste.", "error");
+        return;
+      }
+
+      const value = parseInt(adminSetInput.value, 10);
+      if (isNaN(value)) {
+        setMessage("Entre une valeur à définir.", "error");
+        return;
+      }
+
+      try {
+        await update(getUserRef(selectedUserId), { points: value });
+        setMessage("Points définis avec succès.", "success");
+        adminSetInput.value = "";
+      } catch (err) {
+        console.error(err);
+        setMessage("Erreur définition points : " + err.message, "error");
+      }
+    };
+
+    // Auth state listener
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      selectedUserId = null;
+      usersCache = {};
+
+      if (!user) {
+        isAdmin = false;
+        updateRoleUI();
+        setMessage("Non connecté.", "info");
+        return;
+      }
+
+      const email = user.email || "";
+      isAdmin = checkIsAdmin(email);
+
+      // Vérifier / créer l'entrée user dans la DB
+      try {
+        const snap = await get(getUserRef(user.uid));
+        if (!snap.exists()) {
+          await set(getUserRef(user.uid), {
+            email: email,
+            points: 0,
+            createdAt: Date.now()
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+
+      // Souscrire à ses propres points
+      subscribeToOwnPoints(user.uid);
+
+      // Si admin → souscrire à tous les users
+      if (isAdmin) {
+        subscribeToAllUsers();
+      }
+
+      updateRoleUI();
+      setMessage("Connecté.", "success");
+    });
   </script>
-
 </body>
 </html>
 
