@@ -241,7 +241,7 @@
 
     /* Points display */
 
-    #userPointsCard {
+    #userPointsCard, #transferCard {
       display: none; /* caché avant connexion */
     }
 
@@ -349,7 +349,6 @@
 </head>
 <body>
 
-  <!-- Sidebar admin -->
   <aside id="adminSidebar">
     <div>
       <h2>Admin – PointBase</h2>
@@ -362,8 +361,7 @@
     <div>
       <div class="sectionTitle">Utilisateurs</div>
       <div id="userList">
-        <!-- Liste des utilisateurs générée en JS -->
-      </div>
+        </div>
     </div>
 
     <div class="infoText">
@@ -371,7 +369,6 @@
     </div>
   </aside>
 
-  <!-- Contenu principal -->
   <main id="mainContent">
     <div class="card">
       <h1>PointBase</h1>
@@ -379,7 +376,6 @@
         Connexion sécurisée avec rôles admin & utilisateurs.
       </div>
 
-      <!-- Auth -->
       <div class="sectionTitle">Connexion / Inscription</div>
 
       <div class="inputGroup">
@@ -405,7 +401,6 @@
       <div id="messageBox"></div>
     </div>
 
-    <!-- Carte des points utilisateur -->
     <div id="userPointsCard" class="card">
       <div class="statusBadge" id="roleBadge">
         <div class="statusDotUser" id="roleDot"></div>
@@ -416,12 +411,32 @@
       <div class="pointsValue" id="userPointsValue">0</div>
       <div class="pointsLabel" id="userPointsLabel">Points actuels</div>
       <div class="infoText">
-        Les utilisateurs normaux ne peuvent pas modifier leurs points.  
-        Seuls les administrateurs peuvent les ajuster.
+        Les utilisateurs normaux ne peuvent pas tricher sur leurs points.  
+        Seuls les administrateurs peuvent les ajuster arbitrairement.
       </div>
     </div>
 
-    <!-- Panneau admin -->
+    <div id="transferCard" class="card">
+      <div class="sectionTitle">Transférer mes points</div>
+      
+      <div class="inputGroup">
+        <label for="transferEmailInput">Email du destinataire</label>
+        <input id="transferEmailInput" type="email" placeholder="ami@exemple.com">
+      </div>
+
+      <div class="inputGroup">
+        <label for="transferAmountInput">Montant à envoyer</label>
+        <input id="transferAmountInput" type="number" min="1" placeholder="Ex: 15">
+      </div>
+
+      <div class="btnRow">
+        <button id="btnTransferPoints" class="btnPrimary">Envoyer les points</button>
+      </div>
+      <div class="infoText" style="margin-top: 10px;">
+        Les points seront immédiatement déduits de votre compte et ajoutés à votre destinataire. Action irréversible.
+      </div>
+    </div>
+
     <div id="adminPanel" class="card">
       <div class="sectionTitle">Panneau admin – Points utilisateur</div>
 
@@ -451,7 +466,6 @@
     </div>
   </main>
 
-  <!-- Firebase & logique -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import {
@@ -467,7 +481,8 @@
       set,
       get,
       update,
-      onValue
+      onValue,
+      runTransaction
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     // Config Firebase (la tienne)
@@ -511,6 +526,11 @@
     const roleDot = document.getElementById("roleDot");
     const roleText = document.getElementById("roleText");
 
+    const transferCard = document.getElementById("transferCard");
+    const transferEmailInput = document.getElementById("transferEmailInput");
+    const transferAmountInput = document.getElementById("transferAmountInput");
+    const btnTransferPoints = document.getElementById("btnTransferPoints");
+
     const adminPanel = document.getElementById("adminPanel");
     const adminTargetEmail = document.getElementById("adminTargetEmail");
     const adminTargetPoints = document.getElementById("adminTargetPoints");
@@ -524,6 +544,7 @@
     let isAdmin = false;
     let usersCache = {};
     let selectedUserId = null;
+    let myCurrentPoints = 0; // Stocke en temps réel les points de l'utilisateur connecté
 
     // Helpers
     function setMessage(text, type = "info") {
@@ -610,6 +631,7 @@
       if (!currentUser) {
         authInfo.textContent = "Non connecté.";
         userPointsCard.style.display = "none";
+        transferCard.style.display = "none";
         adminSidebar.style.display = "none";
         adminPanel.style.display = "none";
         return;
@@ -618,16 +640,15 @@
       const email = currentUser.email || "";
       authInfo.innerHTML = `Connecté en tant que <span id="loggedEmail">${email}</span>`;
       userPointsCard.style.display = "block";
+      transferCard.style.display = "block"; // Accessible à TOUS dès qu'on est connecté
 
       if (isAdmin) {
-        // badge admin
         roleText.textContent = "Administrateur";
         roleDot.className = "statusDotAdmin";
         adminSidebar.style.display = "flex";
         adminPanel.style.display = "block";
         adminEmailDisplay.textContent = email;
       } else {
-        // badge user
         roleText.textContent = "Utilisateur";
         roleDot.className = "statusDotUser";
         adminSidebar.style.display = "none";
@@ -642,24 +663,26 @@
       onValue(r, (snap) => {
         const data = snap.val();
         if (!data) return;
-        const pts = data.points || 0;
-        userPointsValue.textContent = pts;
+        myCurrentPoints = data.points || 0;
+        userPointsValue.textContent = myCurrentPoints;
       });
     }
 
-    // Chargement liste utilisateurs pour admin
+    // Chargement liste utilisateurs pour admin (et pour la recherche globale en tâche de fond)
 
     function subscribeToAllUsers() {
       const r = ref(db, "users");
       onValue(r, (snap) => {
         usersCache = snap.val() || {};
-        renderUserList();
-        if (selectedUserId && !usersCache[selectedUserId]) {
-          selectedUserId = null;
-          adminTargetEmail.textContent = "Aucun utilisateur sélectionné.";
-          adminTargetPoints.textContent = "";
-        } else if (selectedUserId) {
-          updateAdminTargetDisplay();
+        if (isAdmin) {
+          renderUserList();
+          if (selectedUserId && !usersCache[selectedUserId]) {
+            selectedUserId = null;
+            adminTargetEmail.textContent = "Aucun utilisateur sélectionné.";
+            adminTargetPoints.textContent = "";
+          } else if (selectedUserId) {
+            updateAdminTargetDisplay();
+          }
         }
       });
     }
@@ -720,6 +743,92 @@
       adminTargetPoints.textContent = "Points actuels : " + (u.points || 0);
     }
 
+    // FONCTIONNALITÉ TRANSFERT SÉCURISÉ (Anti-triche)
+
+    btnTransferPoints.onclick = async () => {
+      if (!currentUser) return;
+
+      const targetEmail = normalizeEmail(transferEmailInput.value);
+      const amount = parseInt(transferAmountInput.value, 10);
+
+      // 1. Validations de base des inputs
+      if (!targetEmail || isNaN(amount) || amount <= 0) {
+        setMessage("Veuillez entrer un email valide et un montant supérieur à 0.", "error");
+        return;
+      }
+
+      if (targetEmail === normalizeEmail(currentUser.email)) {
+        setMessage("Impossible de vous envoyer des points à vous-même !", "error");
+        return;
+      }
+
+      // Vérification des points côté client (première barrière)
+      if (myCurrentPoints < amount) {
+        setMessage(`Points insuffisants. Vous possédez ${myCurrentPoints} points.`, "error");
+        return;
+      }
+
+      setMessage("Recherche du destinataire...", "info");
+
+      // 2. Trouver l'UID du destinataire dans le cache ou la base
+      let targetUid = null;
+      for (const [uid, user] of Object.entries(usersCache)) {
+        if (normalizeEmail(user.email) === targetEmail) {
+          targetUid = uid;
+          break;
+        }
+      }
+
+      if (!targetUid) {
+        setMessage("Destinataire introuvable. Vérifiez l'adresse email.", "error");
+        return;
+      }
+
+      setMessage("Transfert en cours sécurisé...", "info");
+
+      // 3. Utilisation de Firebase "runTransaction" pour empêcher la triche (Débiteur/Créditeur simultané)
+      const myRef = getUserRef(currentUser.uid);
+      const targetRef = getUserRef(targetUid);
+
+      try {
+        // Double sécurité : On vérifie à nouveau via une transaction sur notre propre compte
+        let transactionReussie = false;
+
+        await runTransaction(myRef, (currentProfile) => {
+          if (currentProfile) {
+            if ((currentProfile.points || 0) < amount) {
+              // Si entre-temps les points ont bougé et sont insuffisants, on annule
+              return; 
+            }
+            currentProfile.points = (currentProfile.points || 0) - amount;
+            transactionReussie = true;
+          }
+          return currentProfile;
+        });
+
+        if (!transactionReussie) {
+          setMessage("Le transfert a échoué : Solde insuffisant au moment de la transaction.", "error");
+          return;
+        }
+
+        // Si mon compte est débité avec succès, on crédite le destinataire
+        await runTransaction(targetRef, (targetProfile) => {
+          if (targetProfile) {
+            targetProfile.points = (targetProfile.points || 0) + amount;
+          }
+          return targetProfile;
+        });
+
+        setMessage(`Succès ! ${amount} points transférés à ${targetEmail}.`, "success");
+        transferAmountInput.value = "";
+        transferEmailInput.value = "";
+
+      } catch (err) {
+        console.error(err);
+        setMessage("Erreur lors du transfert : " + err.message, "error");
+      }
+    };
+
     // Actions admin
 
     btnAddPoints.onclick = async () => {
@@ -775,51 +884,27 @@
         adminSetInput.value = "";
       } catch (err) {
         console.error(err);
-        setMessage("Erreur définition points : " + err.message, "error");
+        setMessage("Erreur modification points : " + err.message, "error");
       }
     };
 
-    // Auth state listener
-
-    onAuthStateChanged(auth, async (user) => {
-      currentUser = user;
-      selectedUserId = null;
-      usersCache = {};
-
-      if (!user) {
-        isAdmin = false;
+    // Gestion de l'état d'authentification
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        isAdmin = checkIsAdmin(user.email);
         updateRoleUI();
-        setMessage("Non connecté.", "info");
-        return;
+        subscribeToOwnPoints(user.uid);
+        subscribeToAllUsers(); // Écouté par tous pour permettre la recherche d'email lors des transferts
+      } else {
+        currentUser = null;
+        isAdmin = false;
+        selectedUserId = null;
+        usersCache = {};
+        myCurrentPoints = 0;
+        updateRoleUI();
+        messageBox.textContent = "";
       }
-
-      const email = user.email || "";
-      isAdmin = checkIsAdmin(email);
-
-      // Vérifier / créer l'entrée user dans la DB
-      try {
-        const snap = await get(getUserRef(user.uid));
-        if (!snap.exists()) {
-          await set(getUserRef(user.uid), {
-            email: email,
-            points: 0,
-            createdAt: Date.now()
-          });
-        }
-      } catch (err) {
-        console.error(err);
-      }
-
-      // Souscrire à ses propres points
-      subscribeToOwnPoints(user.uid);
-
-      // Si admin → souscrire à tous les users
-      if (isAdmin) {
-        subscribeToAllUsers();
-      }
-
-      updateRoleUI();
-      setMessage("Connecté.", "success");
     });
   </script>
 </body>
